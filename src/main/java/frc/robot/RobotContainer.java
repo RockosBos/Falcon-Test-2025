@@ -7,15 +7,18 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.CameraSubsystem;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
 public class RobotContainer {
@@ -35,6 +38,8 @@ public class RobotContainer {
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
+    public final CameraSubsystem PhotonVisionCamera1 = new CameraSubsystem(CameraType.PHOTONVISION, "PhotonVision Camera 2");
+    
     public RobotContainer() {
         configureBindings();
     }
@@ -67,6 +72,9 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        //drivetrain.addVisionMeasurement(PhotonVisionCamera1.getPose2d(), Utils.getCurrentTimeSeconds());
+
     }
 
     public Command getAutonomousCommand() {
