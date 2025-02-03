@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import com.ctre.phoenix6.Utils;
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -20,6 +22,10 @@ public class Robot extends TimedRobot {
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run(); 
+    m_robotContainer.LimelightCamera.setRobotYaw(m_robotContainer.drivetrain.getPigeon2().getYaw().getValueAsDouble());
+    m_robotContainer.drivetrain.addVisionMeasurement(m_robotContainer.LimelightCamera.getPose2d(), Utils.getCurrentTimeSeconds());
+    m_robotContainer.drivetrain.addVisionMeasurement(m_robotContainer.PhotonVisionCamera1.getPose2d(), Utils.getCurrentTimeSeconds());
+    m_robotContainer.drivetrain.addVisionMeasurement(m_robotContainer.PhotonVisionCamera2.getPose2d(), Utils.getCurrentTimeSeconds());
   }
 
   @Override

@@ -15,7 +15,11 @@ import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.util.datalog.DataLog;
 import edu.wpi.first.util.datalog.DataLogEntry;
 import edu.wpi.first.util.datalog.DoubleLogEntry;
@@ -24,6 +28,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.CameraType;
+import frc.robot.LimelightHelpers;
 
 public class CameraSubsystem extends SubsystemBase {
 
@@ -37,31 +42,42 @@ public class CameraSubsystem extends SubsystemBase {
   AprilTagFieldLayout aprilTagFieldLayout;
   Transform3d bestCameraToTarget;
   DoubleLogEntry logPoseX, logPoseY, logPoseT;
+  double robotYaw;
+  
   Pose2d currentPose = new Pose2d();
   PhotonPipelineResult result;
   Transform3d cameraToRobotPose = new Transform3d();
 
+  StructPublisher<Pose2d> cameraPosePublisher;
+
   /** Creates a new CameraSubsystem. */
+  public CameraSubsystem(CameraType cameraType, String cameraName, Transform3d cameraToRobotOffset) {
+    this.cameraType = cameraType;
+    this.cameraName = cameraName;
+    this.cameraToRobotPose = cameraToRobotOffset;
+    DataLog log = DataLogManager.getLog();
+
+    if(cameraType == CameraType.PHOTONVISION){
+      aprilTagFieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
+      photonCamera = new PhotonCamera(cameraName);
+    }
+    cameraPosePublisher = NetworkTableInstance.getDefault().getStructTopic(cameraName + "Pose Log", Pose2d.struct).publish();
+  }
+
   public CameraSubsystem(CameraType cameraType, String cameraName) {
     this.cameraType = cameraType;
     this.cameraName = cameraName;
     DataLog log = DataLogManager.getLog();
-    logPoseX = new DoubleLogEntry(log, "/U/poseX");
-    logPoseY = new DoubleLogEntry(log, "/U/poseY");
-    logPoseT = new DoubleLogEntry(log, "/U/poseT");
-
-    aprilTagFieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
 
     if(cameraType == CameraType.PHOTONVISION){
+      aprilTagFieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
       photonCamera = new PhotonCamera(cameraName);
-      
     }
-    else{
-
-    }
+    cameraPosePublisher = NetworkTableInstance.getDefault().getStructTopic(cameraName + "Pose Log", Pose2d.struct).publish();
   }
-  public void updateResults() {
- 
+
+  public void setRobotYaw(double yaw){
+    robotYaw = yaw;
   }
 
   public CameraType getCameraType(){
@@ -69,12 +85,9 @@ public class CameraSubsystem extends SubsystemBase {
   }
 
   public Pose3d update3DPose(){
-    System.out.println(aprilTagFieldLayout.getTagPose(target.getFiducialId()));
     if (aprilTagFieldLayout.getTagPose(target.getFiducialId()).isPresent()) {
       pose3d = PhotonUtils.estimateFieldToRobotAprilTag(target.getBestCameraToTarget(), aprilTagFieldLayout.getTagPose(target.getFiducialId()).get(), cameraToRobotPose);
-      System.out.println("Present");
     }
-    //System.out.println(pose3d);
     return this.pose3d;
   }
 
@@ -88,19 +101,18 @@ public class CameraSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    if(CameraType.PHOTONVISION == cameraType){
       result = photonCamera.getLatestResult();
       target = result.getBestTarget();
       if(result.hasTargets()){
         currentPose = update2DPose();
-        
-        SmartDashboard.putNumber("poseX", currentPose.getX());
-        SmartDashboard.putNumber("poseY", currentPose.getY());
-        SmartDashboard.putNumber("poseR", currentPose.getRotation().getDegrees());
-        // logPoseX.append(currentPose.getX());
-        // logPoseY.append(currentPose.getY());
-        // logPoseT.append(currentPose.getRotation().getDegrees());
       }
-    
+    }
+    else{
+      LimelightHelpers.SetRobotOrientation(cameraName, robotYaw, 0, 0, 0, 0, 0);
+      currentPose = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(cameraName).pose;
+    }
+    cameraPosePublisher.set(new Pose2d(new Translation2d(currentPose.getX(), currentPose.getY()), currentPose.getRotation()));
     
   }
 }
